@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 import pytest
 import uuid
-from model import OrderLine, Batch, allocate
+from model import OrderLine, Batch, allocate, OutOfStock
 
 
 today = date.today()
@@ -88,3 +88,19 @@ def test_prefers_earlier_batches():
     assert medium_batch.available_quantity == medium_batch.quantity
     assert latest_batch.available_quantity == latest_batch.quantity
 
+def test_raise_out_of_stock():
+    in_stock_batch = Batch(uuid.uuid4(), 'batch-sku', 20, eta=None)
+    shipment_batch = Batch(uuid.uuid4(), 'batch-sku', 40, eta=tomorrow)
+    line = OrderLine(uuid.uuid4(), 'line-sku', 5)
+
+    with pytest.raises(OutOfStock, match='line-sku'):
+        allocate(line, [in_stock_batch, shipment_batch])
+
+
+def test_raise_out_of_stock_after_allocation():
+    batch, line = create_batch_and_line('out-of-stock-sku', 10, 10)
+    new_line = OrderLine(uuid.uuid4(), 'out-of-stock-sku', 5)
+
+    allocate(line, [batch])
+    with pytest.raises(OutOfStock, match='out-of-stock-sku'):
+        allocate(new_line, [batch])

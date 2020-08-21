@@ -3,6 +3,10 @@ from typing import Optional, List
 from datetime import date
 
 
+class OutOfStock(Exception):
+    pass
+
+
 @dataclass(frozen=True)
 class OrderLine:
     reference: str
@@ -48,12 +52,14 @@ class Batch:
 
     
 def allocate(order_line: OrderLine, batches: List[Batch]) -> None:
-    batch = next(
-        batch for batch in sorted(batches) if batch.can_be_allocated(order_line)
-        )
-    print(batch)
-    if not batch:
-        return None
-    batch.allocate(order_line)
-    return batch.reference
+    try:
+        batch = next(
+            batch for batch in sorted(batches) if batch.can_be_allocated(order_line)
+            )
+        batch.allocate(order_line)
+        return batch.reference
+    except StopIteration:    
+        raise OutOfStock(f'Out of stock for sku: {order_line.sku}')
+
+    
 
